@@ -1,11 +1,13 @@
 import numpy as np
-import math
 from pid import PID
 from particle import Particle
 import time
+import sys
 
 class Process(object):
     
+    real_time = True
+
     def __init__(self, particle=Particle(), pid=PID()):
         self.particle = particle
         self.pid = pid
@@ -50,7 +52,7 @@ class Process(object):
     def reset(self):
         self.t = 0.
         self._result = None
-        self._target = 0.
+        self._target = 1.
 
 
     def step(self, dt=0.01):
@@ -78,8 +80,80 @@ class Process(object):
 
         while self._run:
             self.step(dt)
-            time.sleep(dt/2)
+            if Process.real_time:
+                time.sleep(dt/2)
 
 
     def stop(self):
         self._run = False
+
+
+
+class TunedProcess(Process):
+    def __init__(self, particle, batch_size):
+        super().__init__(particle=particle, pid=PID(kp=0.0, ki=0.0, kd=0.0))
+        self.batch_count = 0
+        self.batch_size = batch_size
+    
+    
+    def correct_pid(self):
+        pass
+    
+
+    def step(self, dt=0.01):
+        super().step(dt=dt)
+        
+        self.batch_count += 1
+        if self.batch_count == self.batch_size:
+            self.correct_pid()
+            self.batch_count = 0
+
+        return self.result()
+
+
+class TwiddleTunedProcess(TunedProcess):
+    def __init__(self, particle=Particle(), batch_size=50):
+        super().__init__(particle=particle, batch_size=batch_size)
+        self.err = sys.float_info.max / 2
+        self.params = dict(
+            kp=self.pid.kp, 
+            ki=self.pid.ki, 
+            kd=self.pid.kd)
+        self.dparams = dict((key, 1.) for (key, _) in self.params.items())
+        self.keys_count = 0
+        print(self.params)
+        print(self.dparams)
+
+    def _cost_func(self):
+        return np.sum(np.square(self.result()['e'][-self.batch_size:]))/ min(self.batch_size, self.result()['e'].size)
+
+    def correct_pid(self):
+        k = list(self.params.keys())[self.keys_count]
+        self.keys_count += 1
+        self.keys_count = self.keys_count % len(self.params.keys())
+
+        self.params[k] += self.dparams[k]
+        e = self._cost_func()
+
+        if e < self.err:
+            self.err = e
+            self.dparams[k] *= 1.1
+        else:
+            self.params[k] -= self.dparams[k]
+            e = self._cost_func()
+
+            if e < self.err:
+                self.err = e
+                self.dparams[k] *= 1.1
+            else:
+                self.params[k] += self.dparams[k]
+                self.dparams[k] *= 0.95
+        print(e)
+        print(self.err)
+        print(self.params)
+        print(self.dparams)
+        print('\n')
+        
+        self.pid.kp = self.params['kp']
+        self.pid.ki = self.params['ki']
+        self.pid.kd = self.params['kd']

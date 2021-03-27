@@ -1,15 +1,19 @@
 from pid import PID
 from particle import Particle
-from process import Process
+from process import Process, TwiddleTunedProcess
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Slider, Button
 import matplotlib.pyplot as plt
 import threading
 import numpy as np
+import random
 
 
 class Plotter(object):
+    
+    allow_random = True
+
     def __init__(self, processes=[Process()], dt=0.02):
         self.processes = processes
         self.handles = []
@@ -26,13 +30,13 @@ class Plotter(object):
 
         plt.title('Particle trajectory')
         plt.subplots_adjust(right=0.7, bottom=0.3)
-        plt.legend(handles=self.handles, bbox_to_anchor=(1.04,0.5), loc="center left", borderaxespad=0)
+        plt.legend(handles=self.handles, bbox_to_anchor=(1.04, 0.5), loc="center left", borderaxespad=0)
         plt.xlabel('Time $sec$')
         plt.ylabel('Position $m$')
 
 
         axamp = plt.axes([0.25, 0.15, 0.65, 0.03])
-        self.slider = Slider(axamp, 'Target', -1, 1, valinit=0)
+        self.slider = Slider(axamp, 'Target', -1.5, 1.5, valinit=1)
         self.slider.on_changed(self.update_target)
 
         self.fig.canvas.mpl_connect('close_event', self.stop)
@@ -48,9 +52,15 @@ class Plotter(object):
         plt.show()
     
     def update_target(self, event):
-        target = self.slider.val
-        for process in processes:
+        self._set_target(self.slider.val)
+            
+    def _set_target(self, target):
+        for process in self.processes:
             process.set_target(target)
+    
+    def random_target(self, chanse=0.003):
+        if random.random() <= chanse:
+            self._set_target(random.uniform(-1.5, 1.5))
 
     def stop(self, event):
         for process in self.processes:
@@ -72,6 +82,8 @@ class Plotter(object):
         return self.handles
 
     def update(self, t):
+        if Plotter.allow_random:
+            self.random_target()
         
         for idx, process in enumerate(self.processes):
             result = process.result()
@@ -84,11 +96,11 @@ class Plotter(object):
 
 if __name__ == '__main__':
     pid_params = [
-        dict(kp=0.4, ki=0, kd=0),
+        # dict(kp=0.4, ki=0, kd=0),
         dict(kp=1.5, ki=0., kd=0.5),
-        dict(kp=0.2, ki=0.1, kd=0.01),
+        # dict(kp=0.2, ki=0.1, kd=0.01),
     ]
-    processes = []
+    processes = [TwiddleTunedProcess(particle=Particle(x0=[0], v0=[0], inv_mass=1.))]
     for c in pid_params:
         processes.append(Process(particle=Particle(x0=[0], v0=[0], inv_mass=1.), pid=PID(**c)))
 
