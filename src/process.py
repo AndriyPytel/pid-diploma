@@ -2,7 +2,6 @@ import numpy as np
 from pid import PID
 from particle import Particle
 import time
-import sys
 
 class Process(object):
     
@@ -121,8 +120,6 @@ class TwiddleTunedProcess(TunedProcess):
             kd=self.pid.kd)
         self.dparams = dict((key, 1.) for (key, _) in self.params.items())
         self.keys_count = 0
-        print(self.params)
-        print(self.dparams)
 
     def _cost_func(self):
         return np.sum(np.square(self.result()['e'][-self.batch_size:]))/ min(self.batch_size, self.result()['e'].size)
