@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 import threading
 import numpy as np
 import random
+import datetime
+import os
 
 class Plotter(object):
     
-    allow_random = True
+    allow_random = False
 
     def __init__(self, processes=[Process()], dt=0.02):
         self.processes = processes
@@ -72,8 +74,31 @@ class Plotter(object):
         for thread in self.threads:
             thread.join()
     
+    def savesave_results_tables(self, dir_path, processes):
+        pass
+
+    def save_plots(self, dir_path, processes):
+        pass
+    
+    def save_pid_params(self, dir_path, processes):
+        pass
+
+    def save_results(self, processes):
+        dir_path = '../results/simulation' + str(datetime.datetime.now())
+        os.mkdir(dir_path)
+        try:
+            os.mkdir(dir_path)
+            self.save_results_tables(dir_path, processes)
+            self.save_plots(dir_path, processes)
+            self.save_pid_params(dir_path, processes)
+        except OSError:
+            print("Saving results failed")
+        else:
+            print("Successfully result saved in %s" % dir_path)
+    
     def stop(self, event):
         self.stop_processes()
+        self.save_results(self.processes)
 
     def init_draw(self):
         
@@ -94,11 +119,12 @@ class Plotter(object):
         
         for idx, process in enumerate(self.processes):
             result = process.result()
-            if idx == 0:
+            if idx == 0 :
                 self.handles[idx].set_data(result['t'][:480], result['y'][-480:])
             self.handles[idx+1].set_data(result['t'][:480], result['x'][-480:])
         
         return self.handles
+
 
 if __name__ == '__main__':
     pid_params = [
