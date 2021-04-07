@@ -1,6 +1,6 @@
 from pid import PID
 from particle import Particle
-from process import Process, TwiddleTunedProcess
+from process import GradiendBasedProcess, Process, TwiddleTunedProcess
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.widgets import Slider, Button
@@ -84,7 +84,7 @@ class Plotter(object):
         pass
 
     def save_results(self, processes):
-        dir_path = '../results/simulation' + str(datetime.datetime.now())
+        dir_path = '../results/simulation' + datetime.datetime.now().strftime('%d-%m-%Y-%H:%M')
         os.mkdir(dir_path)
         try:
             os.mkdir(dir_path)
@@ -98,15 +98,19 @@ class Plotter(object):
     
     def stop(self, event):
         self.stop_processes()
-        self.save_results(self.processes)
+        # self.save_results(self.processes)
 
     def init_draw(self):
         
         for idx, process in enumerate(self.processes):
             result = process.step()
             if idx == 0:
-                fh, = plt.plot(result['t'], result['y'], label='target')
-                self.handles.append(fh)    
+                th, = plt.plot(result['t'], result['y'], label='target')
+                self.handles.append(th)
+                # eh, = plt.plot(result['t'], result['e'], label='error')
+                # self.handles.append(eh)    
+                # dh, = plt.plot(result['t'], diff, label='diff')
+                # self.handles.append(dh)    
 
             xh, = plt.plot(result['t'], result['x'], label='pid kp {:.2f} ki {:.2f} kd {:.2f}'.format(process.pid.kp, process.pid.ki, process.pid.kd))
             self.handles.append(xh)
@@ -121,6 +125,9 @@ class Plotter(object):
             result = process.result()
             if idx == 0 :
                 self.handles[idx].set_data(result['t'][:480], result['y'][-480:])
+                # self.handles[idx+1].set_data(result['t'][:480], result['e'][-480:])
+                # self.handles[idx+2].set_data(result['t'][:480], diff[-480:])
+            # self.handles[idx+3].set_data(result['t'][:480], result['x'][-480:])
             self.handles[idx+1].set_data(result['t'][:480], result['x'][-480:])
         
         return self.handles
@@ -132,9 +139,10 @@ if __name__ == '__main__':
         dict(kp=1.5, ki=0., kd=0.5),
         # dict(kp=0.2, ki=0.1, kd=0.01),
     ]
-    processes = [TwiddleTunedProcess(particle=Particle(x0=[0], v0=[0], inv_mass=1.))]
-    for c in pid_params:
-        processes.append(Process(particle=Particle(x0=[0], v0=[0], inv_mass=1.), pid=PID(**c)))
+    processes = [GradiendBasedProcess(particle=Particle(x0=[0], v0=[0], inv_mass=1.))]
+    
+    # for c in pid_params:
+    #     processes.append(Process(particle=Particle(x0=[0], v0=[0], inv_mass=1.), pid=PID(**c)))
 
     plotter = Plotter(processes)
     plotter.start()

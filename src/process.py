@@ -1,3 +1,4 @@
+from threading import current_thread
 import numpy as np
 from pid import PID
 from particle import Particle
@@ -45,7 +46,6 @@ class Process(object):
         self.actuate(self.u, dt)
 
         self.t += dt
-
         return self.e
 
 
@@ -57,7 +57,7 @@ class Process(object):
 
     def step(self, dt=0.01):
         self.update(dt)
-
+        
         if self._result == None: 
             self.fields = [
                     ('y', np.float32, self.y.shape),
@@ -86,7 +86,8 @@ class Process(object):
 
     def stop(self):
         self._run = False
-
+        
+        
 
 
 class TunedProcess(Process):
@@ -150,3 +151,26 @@ class TwiddleTunedProcess(TunedProcess):
         self.pid.kp = self.params['kp']
         self.pid.ki = self.params['ki']
         self.pid.kd = self.params['kd']
+
+
+class GradiendBasedProcess(TunedProcess):
+    def __init__(self, particle, pid=PID()):
+        super().__init__(particle, pid, batch_size=1)
+        self.differential = np.asarray([0.])
+        self.alfa = 1
+        self.params = np.asarray((self.pid.kp, self.pid.ki, self.pid.kd))
+        # self.prior_x = np.asarray([self.pid.kp, self.pid.ki, self.pid.kd])
+
+    def update(self, dt=0.01):
+        e = super().update(dt=dt)
+        if self.result() != None:
+            current_dif = (e - self.result()['e'][-1]) / dt
+            self.differential = np.append(self.differential, np.asanyarray(current_dif))
+        return e
+    
+    def correct_pid(self):
+        self.params = self.params - (self.differential[-1] * self.alfa)
+        self.pid.kp = self.params[0]
+        self.pid.ki = self.params[1]
+        self.pid.kd = self.params[2]
+        print(self.params)
