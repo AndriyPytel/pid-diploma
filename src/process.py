@@ -2,7 +2,6 @@ import numpy as np
 from pid import PID
 from particle import Particle
 import time
-import sys
 
 class Process(object):
     
@@ -90,8 +89,8 @@ class Process(object):
 
 
 class TunedProcess(Process):
-    def __init__(self, particle, batch_size):
-        super().__init__(particle=particle, pid=PID(kp=0.0, ki=0.0, kd=0.0))
+    def __init__(self, particle, pid, batch_size):
+        super().__init__(particle=particle, pid=pid)
         self.batch_count = 0
         self.batch_size = batch_size
     
@@ -112,8 +111,8 @@ class TunedProcess(Process):
 
 
 class TwiddleTunedProcess(TunedProcess):
-    def __init__(self, particle=Particle(), batch_size=50):
-        super().__init__(particle=particle, batch_size=batch_size)
+    def __init__(self, particle=Particle(), pid=PID(kp=0.0, ki=0.0, kd=0.0), batch_size=50):
+        super().__init__(particle=particle,pid=pid, batch_size=batch_size)
         self.err = sys.float_info.max / 2
         self.params = dict(
             kp=self.pid.kp, 
@@ -121,8 +120,6 @@ class TwiddleTunedProcess(TunedProcess):
             kd=self.pid.kd)
         self.dparams = dict((key, 1.) for (key, _) in self.params.items())
         self.keys_count = 0
-        print(self.params)
-        print(self.dparams)
 
     def _cost_func(self):
         return np.sum(np.square(self.result()['e'][-self.batch_size:]))/ min(self.batch_size, self.result()['e'].size)
@@ -148,12 +145,7 @@ class TwiddleTunedProcess(TunedProcess):
             else:
                 self.params[k] += self.dparams[k]
                 self.dparams[k] *= 0.95
-        print(e)
-        print(self.err)
-        print(self.params)
-        print(self.dparams)
-        print('\n')
-        
+       
         self.pid.kp = self.params['kp']
         self.pid.ki = self.params['ki']
         self.pid.kd = self.params['kd']

@@ -9,7 +9,6 @@ import threading
 import numpy as np
 import random
 
-
 class Plotter(object):
     
     allow_random = True
@@ -41,15 +40,20 @@ class Plotter(object):
 
         self.fig.canvas.mpl_connect('close_event', self.stop)
 
-    def start(self):
+    def start_ani(self):
+        self.ani = FuncAnimation(self.fig, self.update, frames=np.arange(1000), blit=True, interval=1)
+        plt.show()
+    
+    def start_processes(self):
         self.threads = []
         for process in self.processes:
             thread = threading.Thread(target=process.infinity_loop, args=[self.dt])
             thread.start()
             self.threads.append(thread)
-        
-        self.ani = FuncAnimation(self.fig, self.update, frames=np.arange(1000), blit=True, interval=1)
-        plt.show()
+
+    def start(self):
+        self.start_processes()
+        self.start_ani()
     
     def update_target(self, event):
         self._set_target(self.slider.val)
@@ -62,11 +66,14 @@ class Plotter(object):
         if random.random() <= chanse:
             self._set_target(random.uniform(-1.5, 1.5))
 
-    def stop(self, event):
+    def stop_processes(self):
         for process in self.processes:
             process.stop()
         for thread in self.threads:
             thread.join()
+    
+    def stop(self, event):
+        self.stop_processes()
 
     def init_draw(self):
         
@@ -92,7 +99,6 @@ class Plotter(object):
             self.handles[idx+1].set_data(result['t'][:480], result['x'][-480:])
         
         return self.handles
-
 
 if __name__ == '__main__':
     pid_params = [
